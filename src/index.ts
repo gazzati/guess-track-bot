@@ -25,6 +25,8 @@ class Main extends Base {
         return this.start(msg.chat)
       case TelegramCommand.Go:
         return this.go(msg.chat)
+      case TelegramCommand.Help:
+        return this.help(msg.chat)
     }
   }
 
@@ -39,6 +41,10 @@ class Main extends Base {
   private go(chat: Chat) {
     delete this.state[chat.id]
     this.send(chat.id, "Отправь мне имя исполнителя ⬇️")
+  }
+
+  private help(chat: Chat) {
+    this.send(chat.id, "Если что то не работает, я не при чем 🤪 \nПиши @gazzati")
   }
 
   private message(msg: Message) {
