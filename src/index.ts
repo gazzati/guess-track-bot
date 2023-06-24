@@ -76,7 +76,7 @@ class Main extends Base {
     const lyricFragment = this.getLyricFragment(lyric.lyrics_body)
     if (!lyricFragment) return this.error(msg.chat.id, msg.from)
 
-    this.send(msg.chat.id, `Фрагмент трека: \n\n${lyricFragment} \n\nНапиши мне его название 📝`)
+    this.send(msg.chat.id, `Фрагмент трека: \n\n*${lyricFragment}* \n\nНапиши мне его название 📝`)
 
     this.logger.log(msg.from, `Lyric - ${lyricFragment}`)
 
