@@ -19,6 +19,7 @@
       "@root/*": ["./*"],
       "@api/*": ["./api/*"],
       "@interfaces/*": ["./interfaces/*"],
+      "@helpers/*": ["./helpers/*"],
     },
     "typeRoots": ["./node_modules/@types"]
   },

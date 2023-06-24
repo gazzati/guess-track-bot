@@ -1,4 +1,4 @@
 export enum TelegramCommand {
-    Start = "/start",
-    Go = "/go"
+  Start = "/start",
+  Go = "/go"
 }

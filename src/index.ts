@@ -1,115 +1,92 @@
 import "./aliases"
 
-import Api from "@api/index"
-import TelegramBot, { Chat } from "node-telegram-bot-api"
+import { Chat, Message } from "node-telegram-bot-api"
 
-import config from "@root/config"
-
-import { Track } from "@interfaces/api"
-import {State} from '@interfaces/main';
 import { TelegramCommand } from "@interfaces/telegram"
 
-class Main {
-  private bot: TelegramBot
-  private api: Api
+import Base from "./base"
 
-  private state: State
-
-  constructor() {
-    this.bot = new TelegramBot(config.telegramToken, { polling: true })
-    this.api = new Api()
-
-    this.state = {}
-  }
-
+class Main extends Base {
   public process() {
     this.bot.on("message", msg => {
-      const { chat, text } = msg
-      if (!text) return
+      const { from, text } = msg
+      if (!text || !from) return
 
-      if (Object.values(TelegramCommand).includes(text as TelegramCommand)) return this.command(chat, text)
-      this.message(chat.id, text)
+      if (Object.values(TelegramCommand).includes(text as TelegramCommand)) return this.command(msg)
+      this.message(msg)
     })
   }
 
-  private command(chat: Chat, action: string) {
-    switch (action) {
+  private command(msg: Message) {
+    this.logger.log(msg.from, `Command - ${msg.text}`)
+
+    switch (msg.text) {
       case TelegramCommand.Start:
-        return this.start(chat)
+        return this.start(msg.chat)
       case TelegramCommand.Go:
-        return this.go(chat)
+        return this.go(msg.chat)
     }
   }
 
   private start(chat: Chat) {
     delete this.state[chat.id]
-    this.bot.sendMessage(chat.id, "Привет, давай сыграем в игру. Ты присылаешь мне имя исполнителя, а я тебе фрагмент из его песни, тебе нужно угадать название песни)\nЕсли хочешь сыграть жми /go")
+    this.send(
+      chat.id,
+      "Привет 🖖🏻, давай сыграем в игру \nТы присылаешь мне имя исполнителя, а я тебе фрагмент из его песни, тебе нужно угадать название песни) \nЕсли хочешь сыграть жми /go"
+    )
   }
 
   private go(chat: Chat) {
     delete this.state[chat.id]
-    this.bot.sendMessage(chat.id, "Отправь мне имя исполнителя")
+    this.send(chat.id, "Отправь мне имя исполнителя ⬇️")
   }
 
-  private message (chatId: number, text: string) {
-    if(this.state[chatId]?.trackId) return this.getAnswer(chatId)
+  private message(msg: Message) {
+    if (this.state[msg.chat.id]?.trackId) return this.getAnswer(msg)
 
-    this.getRandomLyricByArtist(chatId, text)
+    this.sendLyric(msg)
   }
 
-  private getAnswer(chatId: number): void {
-    this.bot.sendMessage(chatId, `Правильный ответ: ${this.state[chatId].trackTitle}`)
-    delete this.state[chatId]
+  private getAnswer(msg: Message): void {
+    this.logger.log(msg.from, `Answer - ${msg.text}`)
+
+    if (!msg.text) return this.error(msg.chat.id, msg.from)
+
+    const result = this.compareAnswer(msg.chat.id, msg.text)
+    if (!result) return this.error(msg.chat.id, msg.from)
+
+    this.send(msg.chat.id, result)
+
+    this.logger.log(msg.from, `Result - ${result}`)
+
+    delete this.state[msg.chat.id]
   }
 
-  private async getRandomLyricByArtist(chatId: number, artistQuery: string): Promise<void> {
-    const randomTrack = await this.getRandomTrackByArtist(artistQuery)
-    if(!randomTrack) return this.error(chatId)
+  private async sendLyric(msg: Message): Promise<void> {
+    this.bot.sendChatAction(msg.chat.id, "typing")
+
+    this.logger.log(msg.from, `Artist - ${msg.text}`)
+
+    const randomTrack = await this.getRandomTrackByArtist(msg.text || "")
+    if (!randomTrack) return this.error(msg.chat.id, msg.from, "Треки исполнителя не найдены 😥")
 
     const lyric = await this.api.getTrackLyric(randomTrack.track_id)
-    if(!lyric?.lyrics_body) return this.error(chatId)
+    if (!lyric?.lyrics_body) return this.error(msg.chat.id, msg.from, "Текст песни не найден 😭")
 
     const lyricFragment = this.getLyricFragment(lyric.lyrics_body)
-    if(!lyricFragment) return this.error(chatId)
+    if (!lyricFragment) return this.error(msg.chat.id, msg.from)
 
-    this.bot.sendMessage(chatId, `Фрагмент трека: \n\n${lyricFragment} \n\nНапиши мне название трека`)
+    this.send(msg.chat.id, `Фрагмент трека: \n\n${lyricFragment} \n\nНапиши мне его название 📝`)
 
-    this.state[chatId] = {trackId: randomTrack.track_id, trackTitle: `${randomTrack.artist_name} - ${randomTrack.track_name}`}
-  }
+    this.logger.log(msg.from, `Lyric - ${lyricFragment}`)
 
-  private async getRandomTrackByArtist(artistQuery: string): Promise<Track | null> {
-    const artistTracks = await this.api.getArtistTracks(artistQuery)
-    if(!artistTracks?.track_list?.length) return null
-
-    const randomTrack = artistTracks.track_list[Math.floor(Math.random() * artistTracks.track_list.length)].track
-    return randomTrack || null
-  }
-
-  private getLyricFragment(lyric: string): string | null {
-    const preparedLyric = lyric.split("\n").slice(8, -3)
-    if(!preparedLyric?.length) return null
-
-    let result: Array<string> = []
-
-    for(const line of preparedLyric) {
-      if(result.length > 3) break
-
-      if(line.length < 5) {
-        result = []
-        continue
-      }
-
-      result.push(line)
+    this.state[msg.chat.id] = {
+      trackId: randomTrack.track_id,
+      trackName: randomTrack.track_name,
+      artistName: randomTrack.artist_name,
+      albumName: randomTrack.album_name || null
     }
-
-    return result.join("\n")
-  }
-
-  private error (chatId: number) {
-    this.bot.sendMessage(chatId, "Извините, что-то пошло не так")
   }
 }
 
 new Main().process()
-
-// new Main().getRandomLyricByArtist(1, "Miyagi")
