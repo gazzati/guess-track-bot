@@ -12,7 +12,7 @@ class Api extends ApiBase {
     }
 
     public async getArtistTracks(artistQuery: string): Promise<TrackList | null> {
-        const response = await this.get<TrackList>("/track.search", {params: {q_artist: artistQuery, s_track_rating: "desc", page_size: 30}})
+        const response = await this.get<TrackList>("/track.search", {params: {q_artist: artistQuery, s_track_rating: "desc", page_size: 30, f_has_lyrics: 1}})
         return response || null
     }
 

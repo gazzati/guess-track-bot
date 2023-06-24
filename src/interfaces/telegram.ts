@@ -1,3 +1,4 @@
 export enum TelegramCommand {
-    Artist = "/artist"
+    Start = "/start",
+    Go = "/go"
 }
