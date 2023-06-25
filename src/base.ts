@@ -86,7 +86,7 @@ abstract class Base {
   protected getRightMessage(track: string, artist: string, album: string | null): string {
     if(!album || album.includes(track)) return `А ты молодец 💥, это действительно трек * ${artist} - *${track}*`
 
-    return `Верно 🔥, это трек  *${track}* с альбома *${album}*`
+    return `Верно 🔥, это трек *${track}* с альбома *${album}*`
   }
 
   protected send(chatId: number, message: string): void {
