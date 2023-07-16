@@ -11,10 +11,10 @@ export class Stat {
   @Column({ nullable: true })
   username: string
 
-  @Column({default: 0})
+  @Column({ default: 0 })
   answers: number
 
-  @Column({default: 0})
+  @Column({ default: 0 })
   success_answers: number
 
   @Column()

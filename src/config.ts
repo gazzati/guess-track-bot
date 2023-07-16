@@ -11,7 +11,9 @@ const envVarsSchema = Joi.object({
   PSQL_HOST: Joi.string().default("localhost").description("Database Host"),
   PSQL_DATABASE: Joi.string().default("database").description("Database Name"),
   PSQL_USER: Joi.string().default("root").description("Database User"),
-  PSQL_PASSWORD: Joi.string().allow("").default("root").description("Database Password")
+  PSQL_PASSWORD: Joi.string().allow("").default("root").description("Database Password"),
+
+  REDIS_HOST: Joi.string().default("localhost").description("Redis Host")
 })
 
 const { error, value: envVars } = envVarsSchema.validate(process.env)
@@ -26,4 +28,6 @@ export default {
   psqlDatabase: envVars.PSQL_DATABASE,
   psqlUsername: envVars.PSQL_USER,
   psqlPassword: envVars.PSQL_PASSWORD,
+
+  redisHost: envVars.REDIS_HOST
 }

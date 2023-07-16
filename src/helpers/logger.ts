@@ -5,7 +5,7 @@ enum Color {
   Red = "\x1b[31m",
   Blue = "\x1b[34m",
   Cyan = "\x1b[36m",
-  White = "\x1b[37m",
+  White = "\x1b[37m"
   // Green = "\x1b[32m",
   // Yellow = "\x1b[33m",
   // Magenta = "\x1b[35m",
@@ -14,7 +14,7 @@ enum Color {
 
 class Logger {
   public log(from?: User, message?: string): void {
-    if(!from) return
+    if (!from) return
     const date = this.getDate()
     const user = this.getUser(from)
 
