@@ -30,25 +30,35 @@ abstract class Base {
     const artistTracks = await this.api.getArtistTracks(artistQuery)
     if (!artistTracks?.track_list?.length) return null
 
-    const randomTrack = artistTracks.track_list[Math.floor(Math.random() * artistTracks.track_list.length)].track
+    const randomIndex = this.getRandomIndex(artistTracks.track_list.length)
+    const randomTrack = artistTracks.track_list[randomIndex].track
     return randomTrack || null
   }
 
   protected getLyricFragment(lyric: string): string | null {
-    const preparedLyric = lyric.split("\n").slice(8, -3)
+    const preparedLyric = lyric.split("\n").slice(0, -3)
     if (!preparedLyric?.length) return null
 
+    const randomIndex = this.getRandomIndex(preparedLyric.length)
+
+    const slice = this.getLyricResult(preparedLyric, randomIndex)
+    if(!slice) return this.getLyricResult(preparedLyric)
+
+    return slice
+  }
+
+  private getLyricResult(lyricArray: Array<string>, from = 0): string {
     let result: Array<string> = []
 
-    for (const line of preparedLyric) {
+    for(let i = from; i < lyricArray.length; i+= 1) {
       if (result.length > 3) break
 
-      if (line.length < 5) {
+      if (lyricArray[i].length < 5) {
         result = []
         continue
       }
 
-      result.push(line)
+      result.push(lyricArray[i])
     }
 
     return result.join("\n")
@@ -96,6 +106,10 @@ abstract class Base {
   protected error(chatId: number, from?: User, message?: string): void {
     this.logger.error(from, message)
     this.bot.sendMessage(chatId, message || "Извините, что-то пошло не так \nПопробуйте позже 🫶🏻")
+  }
+
+  private getRandomIndex(length: number): number{
+    return Math.floor(Math.random() * length)
   }
 }
 
