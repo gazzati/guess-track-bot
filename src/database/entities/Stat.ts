@@ -1,11 +1,11 @@
-import { Column, Entity, PrimaryColumn, CreateDateColumn, UpdateDateColumn } from "typeorm"
+import { Column, Entity, PrimaryGeneratedColumn, CreateDateColumn, UpdateDateColumn } from "typeorm"
 
 @Entity({ name: "stats" })
 export class Stat {
-  @PrimaryColumn()
+  @PrimaryGeneratedColumn({ type: "bigint" })
   id: number
 
-  @Column()
+  @Column({ unique: true })
   chat_id: number
 
   @Column({ nullable: true })

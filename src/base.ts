@@ -2,16 +2,20 @@ import "./aliases"
 
 import Api from "@api/index"
 import Fuse from "fuse.js"
-import TelegramBot, { User } from "node-telegram-bot-api"
+import TelegramBot, { InlineKeyboardButton } from "node-telegram-bot-api"
 
 import config from "@root/config"
 
+import { entities } from "@database/data-source"
 import Logger from "@helpers/logger"
 
 import { Track } from "@interfaces/api"
 import { State } from "@interfaces/main"
+import {InlineKeyboard, User} from '@interfaces/telegram';
 
 abstract class Base {
+  protected entities = entities
+
   protected bot: TelegramBot
   protected api: Api
   protected logger: Logger
@@ -75,12 +79,24 @@ abstract class Base {
     const result = fuse.search(answer)
     const score = result.at(0)?.score
 
-    if (score === undefined || score > 0.7) return this.getFailedMessage(track, artist)
+    this.updateStats(chatId, score)
+
+    if (score === undefined || score > 0.6) return this.getFailedMessage(track, artist)
     if (score < 0.4) return this.getRightMessage(track, artist, album)
     return `Возможно ты имел ввиду *${track}* \nЭто правильный ответ 😏`
   }
 
-  protected getFailedMessage(track: string, artist: string): string {
+  private async updateStats(chatId: number, score?: number) {
+    const stat = await this.entities.Stat.findOne({where: {chat_id: chatId}})
+    if(stat) {
+      stat.answers += 1
+      if (score !== undefined && score <= 0.7) stat.success_answers += 1
+
+      this.entities.Stat.save(stat)
+    }
+  }
+
+  private getFailedMessage(track: string, artist: string): string {
     const random = Math.floor(Math.random() * 3)
 
     switch (random) {
@@ -93,18 +109,48 @@ abstract class Base {
     }
   }
 
-  protected getRightMessage(track: string, artist: string, album: string | null): string {
+  private getRightMessage(track: string, artist: string, album: string | null): string {
     if(!album || album.includes(track)) return `А ты молодец 💥, это действительно трек *${artist}* - *${track}*`
 
     return `Верно 🔥, это трек *${track}* с альбома *${album}*`
   }
 
-  protected send(chatId: number, message: string): void {
-    this.bot.sendMessage(chatId, message, { parse_mode: "Markdown" })
+  protected send(chatId: number, message: string, keyboards?: Array<InlineKeyboardButton>): void {
+    this.bot.sendMessage(chatId, message, {
+      parse_mode: "Markdown",
+      ...(keyboards?.length && {
+        reply_markup: {
+          inline_keyboard: [keyboards]
+        }
+      })
+
+    })
   }
 
-  protected error(chatId: number, from?: User, message?: string): void {
-    this.logger.error(from, message)
+  protected get startKeyboardButtons(): Array<InlineKeyboardButton> {
+    return [
+          {
+            text: "Начать",
+            callback_data: InlineKeyboard.ChooseArtist
+          }
+    ]
+  }
+
+  protected get answerKeyboardButtons(): Array<InlineKeyboardButton> {
+    return [
+          {
+            text: "Новый трек",
+            callback_data: InlineKeyboard.NewTrack
+          },
+          {
+            text: "Сменить артиста",
+            callback_data: InlineKeyboard.ChooseArtist
+          }
+    ]
+  }
+
+  protected error(chatId: number, user?: User, message?: string): void {
+    this.logger.error(user, message)
     this.bot.sendMessage(chatId, message || "Извините, что-то пошло не так \nПопробуйте позже 🫶🏻")
   }
 
