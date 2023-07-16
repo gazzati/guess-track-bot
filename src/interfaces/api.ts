@@ -8,8 +8,12 @@ export interface Track {
   artist_name: string
 }
 
+export interface TrackListItem {
+  track: Track
+}
+
 export interface TrackList {
-  track_list: Array<{ track: Track }>
+  track_list: Array<TrackListItem>
 }
 
 export interface Lyric {

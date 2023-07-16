@@ -23,5 +23,5 @@ AppDataSource.initialize()
   .catch(error => console.error(error))
 
 export const entities = {
-  Stat: AppDataSource.getRepository(Stat),
+  Stat: AppDataSource.getRepository(Stat)
 }

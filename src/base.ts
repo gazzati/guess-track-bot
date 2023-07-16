@@ -5,38 +5,46 @@ import Fuse from "fuse.js"
 import TelegramBot, { InlineKeyboardButton } from "node-telegram-bot-api"
 
 import config from "@root/config"
+import Storage from "@root/storage"
 
 import { entities } from "@database/data-source"
 import Logger from "@helpers/logger"
 
-import { Track } from "@interfaces/api"
-import { State } from "@interfaces/main"
-import {InlineKeyboard, User} from '@interfaces/telegram';
+import type { Track, TrackListItem } from "@interfaces/api"
+import { InlineKeyboard, User } from "@interfaces/telegram"
 
 abstract class Base {
   protected entities = entities
 
   protected bot: TelegramBot
   protected api: Api
+  protected storage: Storage
   protected logger: Logger
-
-  protected state: State
 
   constructor() {
     this.bot = new TelegramBot(config.telegramToken, { polling: true })
     this.api = new Api()
+    this.storage = new Storage()
     this.logger = new Logger()
-
-    this.state = {}
   }
 
-  protected async getRandomTrackByArtist(artistQuery: string): Promise<Track | null> {
+  protected async getRandomTrackByArtist(chatId: number, artistQuery: string): Promise<Track | null> {
     const artistTracks = await this.api.getArtistTracks(artistQuery)
     if (!artistTracks?.track_list?.length) return null
 
-    const randomIndex = this.getRandomIndex(artistTracks.track_list.length)
-    const randomTrack = artistTracks.track_list[randomIndex].track
+    const filteredTracks = await this.filteredTracks(chatId, artistTracks.track_list)
+    if (!filteredTracks?.length) return null
+
+    const randomIndex = this.getRandomIndex(filteredTracks.length)
+    const randomTrack = filteredTracks[randomIndex].track
     return randomTrack || null
+  }
+
+  private async filteredTracks(chatId: number, trackList: Array<TrackListItem>): Promise<Array<TrackListItem>> {
+    const cashedTracks = await this.storage.getTracks(chatId)
+    if (!cashedTracks.length) return trackList
+
+    return trackList.filter(item => !cashedTracks.includes(String(item.track.track_id)))
   }
 
   protected getLyricFragment(lyric: string): string | null {
@@ -46,7 +54,7 @@ abstract class Base {
     const randomIndex = this.getRandomIndex(preparedLyric.length - 4)
 
     const slice = this.getLyricResult(preparedLyric, randomIndex)
-    if(!slice) return this.getLyricResult(preparedLyric)
+    if (!slice) return this.getLyricResult(preparedLyric)
 
     return slice
   }
@@ -54,7 +62,7 @@ abstract class Base {
   private getLyricResult(lyricArray: Array<string>, from = 0): string {
     let result: Array<string> = []
 
-    for(let i = from; i < lyricArray.length; i+= 1) {
+    for (let i = from; i < lyricArray.length; i += 1) {
       if (result.length > 3) break
 
       if (lyricArray[i].length < 5) {
@@ -68,27 +76,26 @@ abstract class Base {
     return result.join("\n")
   }
 
-  protected compareAnswer(chatId: number, answer: string): string | null {
-    const track = this.state[chatId].trackName
-    const artist = this.state[chatId].artistName
-    const album = this.state[chatId].albumName
+  protected async compareAnswer(chatId: number, answer: string): Promise<string | null> {
+    const chat = await this.storage.get(chatId)
+    if (!chat) return null
 
-    if(!track || ! artist) return null
+    if (!chat.trackName || !chat.artistName) return null
 
-    const fuse = new Fuse([track], { includeScore: true })
+    const fuse = new Fuse([chat.trackName], { includeScore: true })
     const result = fuse.search(answer)
     const score = result.at(0)?.score
 
     this.updateStats(chatId, score)
 
-    if (score === undefined || score > 0.6) return this.getFailedMessage(track, artist)
-    if (score < 0.4) return this.getRightMessage(track, artist, album)
-    return `Возможно ты имел ввиду *${track}* \nЭто правильный ответ 😏`
+    if (score === undefined || score > 0.6) return this.getFailedMessage(chat.trackName, chat.artistName)
+    if (score < 0.4) return this.getRightMessage(chat.trackName, chat.artistName, chat.albumName)
+    return `Возможно ты имел ввиду *${chat.trackName}* \nЭто правильный ответ 😏`
   }
 
   private async updateStats(chatId: number, score?: number) {
-    const stat = await this.entities.Stat.findOne({where: {chat_id: chatId}})
-    if(stat) {
+    const stat = await this.entities.Stat.findOne({ where: { chat_id: chatId } })
+    if (stat) {
       stat.answers += 1
       if (score !== undefined && score <= 0.7) stat.success_answers += 1
 
@@ -110,7 +117,7 @@ abstract class Base {
   }
 
   private getRightMessage(track: string, artist: string, album: string | null): string {
-    if(!album || album.includes(track)) return `А ты молодец 💥, это действительно трек *${artist}* - *${track}*`
+    if (!album || album.includes(track)) return `А ты молодец 💥, это действительно трек *${artist}* - *${track}*`
 
     return `Верно 🔥, это трек *${track}* с альбома *${album}*`
   }
@@ -123,29 +130,28 @@ abstract class Base {
           inline_keyboard: [keyboards]
         }
       })
-
     })
   }
 
   protected get startKeyboardButtons(): Array<InlineKeyboardButton> {
     return [
-          {
-            text: "Начать",
-            callback_data: InlineKeyboard.ChooseArtist
-          }
+      {
+        text: "Начать",
+        callback_data: InlineKeyboard.ChooseArtist
+      }
     ]
   }
 
   protected get answerKeyboardButtons(): Array<InlineKeyboardButton> {
     return [
-          {
-            text: "Новый трек",
-            callback_data: InlineKeyboard.NewTrack
-          },
-          {
-            text: "Сменить артиста",
-            callback_data: InlineKeyboard.ChooseArtist
-          }
+      {
+        text: "Новый трек",
+        callback_data: InlineKeyboard.NewTrack
+      },
+      {
+        text: "Сменить артиста",
+        callback_data: InlineKeyboard.ChooseArtist
+      }
     ]
   }
 
@@ -154,7 +160,7 @@ abstract class Base {
     this.bot.sendMessage(chatId, message || "Извините, что-то пошло не так \nПопробуйте позже 🫶🏻")
   }
 
-  private getRandomIndex(length: number): number{
+  private getRandomIndex(length: number): number {
     return Math.floor(Math.random() * length)
   }
 }
