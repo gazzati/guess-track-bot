@@ -18,7 +18,9 @@
     "dotenv": "^16.3.1",
     "fuse.js": "^6.6.2",
     "joi": "^17.9.2",
-    "node-telegram-bot-api": "^0.61.0"
+    "node-telegram-bot-api": "^0.61.0",
+    "pg": "^8.11.1",
+    "typeorm": "^0.3.17"
   },
   "devDependencies": {
     "@gazzati/eslint-config-node": "^1.0.8",

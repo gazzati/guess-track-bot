@@ -39,7 +39,7 @@ abstract class Base {
     const preparedLyric = lyric.split("\n").slice(0, -3)
     if (!preparedLyric?.length) return null
 
-    const randomIndex = this.getRandomIndex(preparedLyric.length)
+    const randomIndex = this.getRandomIndex(preparedLyric.length - 4)
 
     const slice = this.getLyricResult(preparedLyric, randomIndex)
     if(!slice) return this.getLyricResult(preparedLyric)
@@ -94,7 +94,7 @@ abstract class Base {
   }
 
   protected getRightMessage(track: string, artist: string, album: string | null): string {
-    if(!album || album.includes(track)) return `А ты молодец 💥, это действительно трек * ${artist} - *${track}*`
+    if(!album || album.includes(track)) return `А ты молодец 💥, это действительно трек *${artist}* - *${track}*`
 
     return `Верно 🔥, это трек *${track}* с альбома *${album}*`
   }
