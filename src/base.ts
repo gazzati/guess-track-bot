@@ -41,10 +41,22 @@ abstract class Base {
   }
 
   private async filteredTracks(chatId: number, trackList: Array<TrackListItem>): Promise<Array<TrackListItem>> {
-    const cashedTracks = await this.storage.getTracks(chatId)
+    const cashedTracks = await this.storage.getLastTracks(chatId)
     if (!cashedTracks.length) return trackList
 
     return trackList.filter(item => !cashedTracks.includes(String(item.track.track_id)))
+  }
+
+  protected async getTrackLyric(trackId: number): Promise<string | null> {
+    const cashedLyric = await this.storage.getLyric(trackId)
+    if (cashedLyric) return cashedLyric
+
+    const lyric = await this.api.getTrackLyric(trackId)
+    if (!lyric?.lyrics_body) return null
+
+    this.storage.saveLyric(trackId, lyric.lyrics_body)
+
+    return lyric.lyrics_body
   }
 
   protected getLyricFragment(lyric: string): string | null {
@@ -77,7 +89,7 @@ abstract class Base {
   }
 
   protected async compareAnswer(chatId: number, answer: string): Promise<string | null> {
-    const chat = await this.storage.get(chatId)
+    const chat = await this.storage.getChat(chatId)
     if (!chat) return null
 
     if (!chat.trackName || !chat.artistName) return null
@@ -117,9 +129,16 @@ abstract class Base {
   }
 
   private getRightMessage(track: string, artist: string, album: string | null): string {
-    if (!album || album.includes(track)) return `А ты молодец 💥, это действительно трек *${artist}* - *${track}*`
+    const randResult = Math.random() > 0.5
 
-    return `Верно 🔥, это трек *${track}* с альбома *${album}*`
+    if (!album || album.includes(track))
+      return randResult
+        ? `А ты молодец 💥 \nЭто действительно трек *${artist}* - *${track}*`
+        : "В точку ⚜️ \nЭто трек *${artist}* - *${track}*"
+
+    return randResult
+      ? `Верно 🔥 \nЭто трек *${track}* с альбома *${album}*`
+      : `Ходят слухи, что ты TrueFun ✅ \nУ многих именно с треком *${track}* ассоциируется альбом *${album}*`
   }
 
   protected send(chatId: number, message: string, keyboards?: Array<InlineKeyboardButton>): void {
