@@ -96,9 +96,8 @@ class Main extends Base {
     if (!msg.from || !msg.text) return
 
     const chat = await this.storage.get(msg.chat.id)
-    if (!chat) return
+    if (chat?.trackId) return this.getAnswer(msg)
 
-    if (chat.trackId) return this.getAnswer(msg)
     this.sendLyric(msg.from, msg.chat, msg.text)
   }
 
