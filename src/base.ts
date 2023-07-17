@@ -134,7 +134,7 @@ abstract class Base {
     if (!album || album.includes(track))
       return randResult
         ? `А ты молодец 💥 \nЭто действительно трек *${artist}* - *${track}*`
-        : "В точку ⚜️ \nЭто трек *${artist}* - *${track}*"
+        : `В точку ⚜️ \nЭто трек *${artist}* - *${track}*`
 
     return randResult
       ? `Верно 🔥 \nЭто трек *${track}* с альбома *${album}*`
