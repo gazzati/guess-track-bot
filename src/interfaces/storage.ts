@@ -3,4 +3,5 @@ export interface Chat {
   trackName: string
   artistName: string
   albumName: string | null
+  artistQuery: string
 }

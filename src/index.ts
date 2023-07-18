@@ -73,7 +73,7 @@ class Main extends Base {
     const chatData = await this.storage.getChat(chat.id)
     if (!chatData?.artistName) return this.chooseArtist(chat)
 
-    this.sendLyric(chat, chat, chatData.artistName)
+    this.sendLyric(chat, chat, chatData.artistQuery)
   }
 
   private help(chat: Chat) {
@@ -136,7 +136,8 @@ class Main extends Base {
       trackId: randomTrack.track_id,
       trackName: randomTrack.track_name,
       artistName: randomTrack.artist_name,
-      albumName: randomTrack.album_name || null
+      albumName: randomTrack.album_name || null,
+      artistQuery: artist
     })
 
     this.storage.appendToLastTracks(chat.id, randomTrack.track_id)
